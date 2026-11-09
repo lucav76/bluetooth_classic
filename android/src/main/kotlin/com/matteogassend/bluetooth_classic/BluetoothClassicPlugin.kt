@@ -61,15 +61,25 @@ class BluetoothClassicPlugin: FlutterPlugin, MethodCallHandler, PluginRegistry.R
 
     private val inputStream = socket.inputStream
     private val outputStream = socket.outputStream
-    private val buffer: ByteArray = ByteArray(1024)
+
     var readStream = true
     override fun run() {
-      var numBytes: Int
       while (readStream) {
         try {
-          numBytes = inputStream.read(buffer)
+          val buffer = ByteArray(1024)
+          val numBytes = inputStream.read(buffer)
+
+          if (numBytes < 0) {
+            readStream = false
+            Handler(looper).post { publishBluetoothStatus(0) }
+            break
+          }
+          if (numBytes == 0)
+            continue
+
+          val bufferResized = buffer.copyOfRange(0, numBytes)
           android.util.Log.i("Bluetooth Read", "read $buffer")
-          Handler(Looper.getMainLooper()).post { publishBluetoothData(ByteArray(numBytes) { buffer[it] }) }
+          Handler(Looper.getMainLooper()).post { publishBluetoothData(bufferResized) }
         } catch (e: IOException) {
           android.util.Log.e("Bluetooth Read", "input stream disconnected", e)
           Handler(looper).post { publishBluetoothStatus(0) }
